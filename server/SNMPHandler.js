@@ -17,19 +17,16 @@ class SNMPHandler {
         return this.session;
     }
 
-    performWalk(target, startOid = '1.3.6.1.2.1', outputFile = `snmp_walk_${target}.txt`) {
+    performWalk(target, startOid = '1.3.6.1.2.1', outputFile) {
         return new Promise((resolve, reject) => {
             if (!this.session) {
                 this.createSession(target);
             }
-
             const results = [];
             const logStream = fs.createWriteStream(outputFile, { flags: 'w' });
-
             logStream.write(`SNMP Walk Results for ${target}\n`);
             logStream.write(`Timestamp: ${new Date().toISOString()}\n`);
             logStream.write('='.repeat(50) + '\n\n');
-
             this.session.walk(
                 startOid, 
                 (varbinds) => {
@@ -76,13 +73,17 @@ class SNMPHandler {
             });
         }
 
+    pollMultipleDevices(targets, oids) {
+        const pollPromises = targets.map(target => this.pollDevice(target, oids));
+        return Promise.all(pollPromises);
+    }
+
     pollDevice(target, oids) {
         return new Promise((resolve, reject) => {
             if (!this.session) {
                 this.createSession(target);
             }
             const oidList = Object.values(oids);
-
             this.session.get(oidList, (error, varbinds) => {
                 if (error) {
                     console.error('SNMP Get Error:', error.message);
@@ -115,7 +116,6 @@ class SNMPHandler {
         if (this.isBinaryData(buffer, oid)) {
             return this.bufferToHex(buffer);
         }
-        
         try {
             const str = buffer.toString('utf8');
             // ASCII check
@@ -143,12 +143,10 @@ class SNMPHandler {
                 return true;
             }
         }
-        
         // If buffer is 6 bytes, probably a MAC address
         if (buffer.length === 6) {
             return true;
         }
-        
         return false;
     }
 

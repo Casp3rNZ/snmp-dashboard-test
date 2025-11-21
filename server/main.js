@@ -3,6 +3,11 @@ import SNMPHandler from './SNMPHandler.js';
 async function main() {
     const snmpHandler = new SNMPHandler();
     const targetIP = '192.168.4.73';
+    const targetList = [
+        '192.168.4.73',
+        '192.168.4.73'
+    ];
+    const outputFile = `snmp_walk_${targetIP}.txt`;
     const OIDS_TO_POLL = { 
         model: "1.3.6.1.2.1.1.1.0",
         serialNumber: "1.3.6.1.2.1.43.5.1.1.17.1",
@@ -14,8 +19,12 @@ async function main() {
 
     try {
         //await snmpHandler.performWalk(targetIP, '1.3.6.1.2.1', outputFile);
-        var result = await snmpHandler.pollDevice(targetIP, OIDS_TO_POLL);
-        console.log('Poll Result:', result);
+        // Poll every 10 seconds
+        let result = {};
+        setInterval(async () => {
+            result = await snmpHandler.pollMultipleDevices(targetList, OIDS_TO_POLL);
+            console.log('Poll Result:', result);
+        }, 10000);
     } catch (error) {
         console.error('Failed to perform SNMP walk:', error.message);
     }
