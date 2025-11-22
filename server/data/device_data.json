@@ -1,24 +1,21 @@
 [
   {
-    "timestamp": "2025-11-22T01:39:41.068Z",
-    "data": {
+    "ip_address": "192.168.4.73",
+    "model": "SHARP MX-C304W",
+    "serialNumber": "0301305000",
+    "deviceName": "MILA",
+    "macAddress": "84:25:3f:7d:dd:dd",
+    "meter_mono": "257872",
+    "meter_color": "13270",
+    "birth_data": {
+      "ip_address": "192.168.4.73",
       "model": "SHARP MX-C304W",
       "serialNumber": "0301305000",
       "deviceName": "MILA",
       "macAddress": "84:25:3f:7d:dd:dd",
       "meter_mono": "257872",
       "meter_color": "13270"
-    }
-  },
-  {
-    "timestamp": "2025-11-22T01:39:41.068Z",
-    "data": {
-      "model": "SHARP MX-C304W",
-      "serialNumber": "0301305000",
-      "deviceName": "MILA",
-      "macAddress": "84:25:3f:7d:dd:dd",
-      "meter_mono": "257872",
-      "meter_color": "13270"
-    }
+    },
+    "lastUpdated": "2025-11-22T03:38:49.748Z"
   }
 ]

@@ -2,9 +2,11 @@ import fs from 'fs';
 import path from 'path';
 
 class DataStorageHandler {
-    constructor(dataDir, configDir) {
-        this.dataDir = dataDir;
-        this.configDir = configDir;
+    constructor() {
+        this.dataDir = "./server/data";
+        this.configDir = "./server/config";
+        this.machinesFile = "machines.json";
+        this.fileName = 'device_data.json';
         if (!fs.existsSync(this.dataDir)) {
             fs.mkdirSync(this.dataDir, { recursive: true });
         }
@@ -16,32 +18,55 @@ class DataStorageHandler {
     saveDeviceData(data) {
         // Save to JSON
         const timestamp = new Date().toISOString();
-        const output = data.map(result => {
-            console.log(result);
-            return {
-                timestamp: timestamp,
-                data: result
-            };
-        });
-            
+        const filepath = path.join(this.dataDir, this.fileName);
+        let existingDeviceData = [];
 
-        const filename = `device_data.json`;
-        const filepath = path.join(this.dataDir, filename);
-        
+        // Load existing data if available
+        if (fs.existsSync(filepath)) {
+            try {
+            const fileData = fs.readFileSync(filepath, 'utf8');
+            existingDeviceData = JSON.parse(fileData);
+            } catch (error) {
+                console.error(`DataStorageHandler - Failed to read existing data:`, error);
+                existingDeviceData = [];
+            }
+        }
+
+        let existingIPs = [];
+
+        const updatedDeviceData = data.map((device) => {
+            const existingDevice = existingDeviceData.find(d => d.ip_address === device.ip_address);
+            if (existingDevice) {
+                existingIPs.push(existingDevice.ip_address);
+                return {
+                    ...device,
+                    birth_data: existingDevice.birth_data,
+                    lastUpdated: timestamp
+                }
+            } else {
+                return {
+                    ...device,
+                    birth_data: device,
+                    lastUpdated: timestamp,
+                };
+            }
+        });
+
+        console.log('DataStorageHandler - Updated device data:', updatedDeviceData);
         try {
-            fs.writeFileSync(filepath, JSON.stringify(output, null, 2));
-            console.log(`Data saved to ${filename}`);
+            fs.writeFileSync(filepath, JSON.stringify(updatedDeviceData, null, 2));
+            console.log(`DataStorageHandler - Device data saved to ${filepath}`);
             return true;
         } catch (error) {
-            console.error(`Failed to save data to ${filename}:`, error);
+            console.error(`DataStorageHandler - Failed to save device data:`, error);
             return false;
         }
+
     }
 
     getDeviceData(deviceIP) {
         // Get data from JSON
-        const filename = `device_data.json`;
-        const filepath = path.join(this.dataDir, filename);
+        const filepath = path.join(this.dataDir, this.fileName);
         
         try {
             if (fs.existsSync(filepath)) {
@@ -50,7 +75,7 @@ class DataStorageHandler {
             }
             return null;
         } catch (error) {
-            console.error(`Failed to read data for ${deviceIP}:`, error);
+            console.error(`DataStorageHandler - Failed to read data for ${deviceIP}:`, error);
             return null;
         }
     }
@@ -58,46 +83,23 @@ class DataStorageHandler {
     getAllDeviceData() {
         // Get all data
         try {
-            const files = fs.readdirSync(this.dataDir);
-            const deviceFiles = files.filter(file => file.startsWith('device_') && file.endsWith('.json'));
-            
-            const allData = {};
-            deviceFiles.forEach(file => {
-                const filepath = path.join(this.dataDir, file);
-                const data = JSON.parse(fs.readFileSync(filepath, 'utf8'));
-                allData[data.deviceIP] = data;
-            });
-            
+            const filepath = path.join(this.dataDir, this.fileName);
+            if (!fs.existsSync(filepath)) {
+                return [];
+            }
+            const data = fs.readFileSync(filepath, 'utf8');
+            const allData = JSON.parse(data);
+
             return allData;
+
         } catch (error) {
-            console.error('Failed to read all devices:', error);
+            console.error('DataStorageHandler - Failed to read all devices:', error);
             return {};
         }
     }
 
-    saveSummary(devices) {
-        // Save summary data for dashboard
-        const summary = {
-            totalDevices: devices.length,
-            lastUpdated: new Date().toISOString(),
-            devices: devices.map(device => ({
-                ip: device.deviceIP,
-                status: device.data ? 'online' : 'offline',
-                lastSeen: device.timestamp
-            }))
-        };
-        const filepath = path.join(this.dataDir, 'summary.json');
-        try {
-            fs.writeFileSync(filepath, JSON.stringify(summary, null, 2));
-            return true;
-        } catch (error) {
-            console.error('Failed to save summary:', error);
-            return false;
-        }
-    }
-
     async loadMachines() {
-        const machinesFile = path.join(this.configDir, 'machines.json');
+        const machinesFile = path.join(this.configDir, this.machinesFile);
         try {
             if (fs.existsSync(machinesFile)) {
                 const data = fs.readFileSync(machinesFile, 'utf8');
@@ -105,11 +107,11 @@ class DataStorageHandler {
                 console.log(`Loaded ${machines.length} machines from configuration.`);
                 return machines;
             } else {
-                console.warn('Machines configuration file not found.');
+                console.warn('DataStorageHandler - Machines configuration file not found.');
                 return [];
             }
         } catch (error) {
-            console.error('Failed to load machines configuration:', error);
+            console.error('DataStorageHandler - Failed to load machines configuration:', error);
             return [];
         }
     }
