@@ -3,18 +3,20 @@ import fs from 'fs';
 
 class SNMPHandler {
     constructor() {
-        this.session = null;
+        this.sessions = [];
     }
 
-    createSession(target, community = 'public') {
+    createSessions(targetOIDs, community = 'public') {
         const options = {
             port: 161,
             retries: 1,
             timeout: 5000,
             version: snmp.Version1
         };
-        this.session = snmp.createSession(target, community, options);
-        return this.session;
+        targetOIDs.forEach((oid, id) => {
+            this.sessions[id] = snmp.createSession(oid, community, options);
+        });
+        return this.sessions;
     }
 
     performWalk(target, startOid = '1.3.6.1.2.1', outputFile) {
@@ -73,18 +75,22 @@ class SNMPHandler {
             });
         }
 
-    pollMultipleDevices(targets, oids) {
-        const pollPromises = targets.map(target => this.pollDevice(target, oids));
-        return Promise.all(pollPromises);
+    async pollMultipleDevices(targets, oids) {
+        // create sessions if not already created
+        if (this.sessions.length === 0) {
+            this.createSessions(targets);
+        }
+        
+        const pollPromises = this.sessions.map(session => this.pollDevice(session.target, oids));
+        let results = await Promise.all(pollPromises);
+        return results;
     }
 
     pollDevice(target, oids) {
         return new Promise((resolve, reject) => {
-            if (!this.session) {
-                this.createSession(target);
-            }
             const oidList = Object.values(oids);
-            this.session.get(oidList, (error, varbinds) => {
+            console.log(`Polling device ${target}`);
+            this.sessions.find(s => s.target === target).get(oidList, (error, varbinds) => {
                 if (error) {
                     console.error('SNMP Get Error:', error.message);
                     reject(error);
@@ -106,7 +112,6 @@ class SNMPHandler {
                     }
                     resolve(result);
                 }
-                this.session.close();
             });
         });
     }

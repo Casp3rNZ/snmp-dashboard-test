@@ -1,13 +1,15 @@
 import SNMPHandler from './SNMPHandler.js';
+import DataStorageHandler from './DataStorageHandler.js';
+import WSHandler from './WSHandler.js';
 
 async function main() {
     const snmpHandler = new SNMPHandler();
-    const targetIP = '192.168.4.73';
-    const targetList = [
-        '192.168.4.73',
-        '192.168.4.73'
-    ];
-    const outputFile = `snmp_walk_${targetIP}.txt`;
+    const dataStorageHandler = new DataStorageHandler('./server/data', './server/config');
+    const wsSvr = new WSHandler(8080);
+    var machines = await dataStorageHandler.loadMachines();
+
+    wsSvr.start();
+
     const OIDS_TO_POLL = { 
         model: "1.3.6.1.2.1.1.1.0",
         serialNumber: "1.3.6.1.2.1.43.5.1.1.17.1",
@@ -16,18 +18,36 @@ async function main() {
         meter_mono: "1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.61",
         meter_color: "1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.63"
     };
+    //await snmpHandler.performWalk(targetIP, '1.3.6.1.2.1', outputFile);
 
-    try {
-        //await snmpHandler.performWalk(targetIP, '1.3.6.1.2.1', outputFile);
-        // Poll every 10 seconds
-        let result = {};
-        setInterval(async () => {
-            result = await snmpHandler.pollMultipleDevices(targetList, OIDS_TO_POLL);
-            console.log('Poll Result:', result);
-        }, 10000);
-    } catch (error) {
-        console.error('Failed to perform SNMP walk:', error.message);
+    async function pollAndStore() {
+        try {
+            console.log('Polling devices...');
+            const targetList = machines.map(machine => machine.target);
+            console.log('Target List:', targetList);
+            const results = await snmpHandler.pollMultipleDevices(targetList, OIDS_TO_POLL);
+
+            // Save device data
+            dataStorageHandler.saveDeviceData(results);
+
+            // Save summary of all devices
+            const allData = dataStorageHandler.getAllDeviceData();
+            dataStorageHandler.saveSummary(Object.values(allData));
+
+            wsSvr.broadcast(allData);
+
+            console.log('Polling and storage complete.');
+
+        } catch (error) {
+            console.error('Failed to perform SNMP poll:', error);
+        }
     }
+
+    await pollAndStore();
+    setInterval(pollAndStore, 1000);
+    console.log('SNMP Dashboard server running...');
+    console.log('- WebSocket server on port 8080');
+    console.log('- Polling every 5 seconds');
 }
 
 main();

@@ -1,0 +1,12 @@
+[
+    {
+        "target": "192.168.4.73",
+        "nickname": "Device a",
+        "branch": "main"
+    },
+    {
+        "target": "192.168.4.73",
+        "nickname": "Device b",
+        "branch": "main"
+    }
+]
